@@ -5,6 +5,7 @@ out/
 target/
 bin/
 obj/
+recordings/
 
 # Dependencies
 node_modules/

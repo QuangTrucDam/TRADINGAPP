@@ -28,7 +28,6 @@ int main(int argc, char* argv[]) {
     auto* layout = new QVBoxLayout(shell);
     layout->setContentsMargins(18, 12, 18, 12);
 
-    // Top navigation.
     auto* navigation = new QHBoxLayout;
 
     auto* backtestingButton =
@@ -58,7 +57,6 @@ int main(int argc, char* argv[]) {
     navigation->addWidget(workspaceLabel);
     layout->addLayout(navigation);
 
-    // Each page owns its own interface and state.
     auto* workspaces = new QStackedWidget(shell);
 
     auto engineGate = std::make_shared<EngineGate>();
@@ -74,7 +72,7 @@ int main(int argc, char* argv[]) {
     layout->addWidget(workspaces, 1);
     window.setCentralWidget(shell);
 
-    // Navigation changes visibility without recreating pages.
+    
     QObject::connect(
         backtestingButton,
         &QPushButton::clicked,
@@ -128,7 +126,7 @@ int main(int argc, char* argv[]) {
         backtestingPage->showClosingMessage();
     };
 
-    // Shared appearance for both pages.
+
     window.setStyleSheet(R"(
         QWidget {
             background: #101922;
