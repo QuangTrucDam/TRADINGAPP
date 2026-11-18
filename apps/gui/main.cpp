@@ -1,6 +1,6 @@
 #include "AppWindow.hpp"
-#include "BackTestingPage.hpp"
-#include "LiveTradingPage.hpp"
+#include "backtest/BackTestingPage.hpp"
+#include "live/LiveTradingPage.hpp"
 
 #include <QApplication>
 #include <QButtonGroup>
@@ -9,6 +9,7 @@
 #include <QStackedWidget>
 #include <QStatusBar>
 #include <QVBoxLayout>
+#include <utility>
 
 using namespace trading_app_desktop;
 
@@ -18,7 +19,7 @@ int main(int argc, char* argv[]) {
 
     AppWindow window;
     window.setWindowTitle(
-        "Trading App | Historical research desktop");
+        "Trading App | Historical and live market data");
 
     window.resize(1400, 900);
     window.setMinimumSize(1100, 780);
@@ -60,11 +61,12 @@ int main(int argc, char* argv[]) {
     // Each page owns its own interface and state.
     auto* workspaces = new QStackedWidget(shell);
 
+    auto engineGate = std::make_shared<EngineGate>();
     auto* backtestingPage =
-        new BackTestingPage(workspaces);
+        new BackTestingPage(workspaces, engineGate);
 
     auto* livePage =
-        new LiveTradingPage(workspaces);
+        new LiveTradingPage(workspaces, engineGate);
 
     workspaces->addWidget(backtestingPage);
     workspaces->addWidget(livePage);
@@ -89,16 +91,19 @@ int main(int argc, char* argv[]) {
         [workspaces, livePage, workspaceLabel] {
             workspaces->setCurrentWidget(livePage);
             workspaceLabel->setText(
-                "Live Trading · not connected");
+                "Live Trading · market data and paper sessions");
         });
 
-    // Page notifications update the outer window.
-    QObject::connect(
-        backtestingPage,
-        &BackTestingPage::statusChanged,
-        &window,
-        [&window](const QString& message) {
-            window.statusBar()->showMessage(message);
+    auto status = std::make_shared<std::pair<QString, QString>>("Backtest: Idle", "Live: Disconnected");
+    QObject::connect(livePage, &LiveTradingPage::statusChanged, &window,
+        [&window, status](const QString& message) {
+            status->second = message;
+            window.statusBar()->showMessage(status->first + "  |  " + status->second);
+        });
+    QObject::connect(backtestingPage, &BackTestingPage::statusChanged, &window,
+        [&window, status](const QString& message) {
+            status->first = message;
+            window.statusBar()->showMessage(status->first + "  |  " + status->second);
         });
 
     QObject::connect(
@@ -225,7 +230,7 @@ int main(int argc, char* argv[]) {
     )");
 
     window.statusBar()->showMessage(
-        "Historical data only · no strategy running");
+        "Backtesting and live market data · no live strategy running");
 
     window.show();
     return app.exec();

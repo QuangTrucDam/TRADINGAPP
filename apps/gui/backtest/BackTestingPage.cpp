@@ -53,8 +53,8 @@ QString timeText(EventTime time) {
 
 } // namespace
 
-BackTestingPage::BackTestingPage(QWidget* parent)
-    : QWidget(parent)
+BackTestingPage::BackTestingPage(QWidget* parent, SharedEngineGate gate)
+    : QWidget(parent), gate_(gate ? std::move(gate) : std::make_shared<EngineGate>())
 {
     for (const auto& instrument : instruments_) {
         settings_.insert(
@@ -65,6 +65,9 @@ BackTestingPage::BackTestingPage(QWidget* parent)
     buildUi();
     connectUi();
     refreshInputs();
+    auto* gateTimer = new QTimer(this);
+    connect(gateTimer, &QTimer::timeout, this, [this] { if (!busy_) refreshInputs(); });
+    gateTimer->start(200);
 }
 
 BackTestingPage::~BackTestingPage() {
@@ -74,6 +77,7 @@ BackTestingPage::~BackTestingPage() {
     // not this page. Wait before destroying its watcher.
     watcher_.disconnect(this);
     watcher_.waitForFinished();
+    if (claimed_) gate_->release("backtest");
 }
 
 void BackTestingPage::buildUi() {
@@ -563,19 +567,20 @@ void BackTestingPage::refreshInputs() {
             + " · USD uses a dot and at most 4 decimals.";
     }
 
-    validation_->setText(error);
+    validation_->setText(gate_->busy() && !claimed_ ? "Another engine job is active: " + QString::fromStdString(gate_->owner()) : error);
 
     const bool sourceAvailable =
         !directory_->text().isEmpty()
         && QDir(directory_->text()).exists();
 
     run_->setEnabled(
-        !busy_ && error.isEmpty() && sourceAvailable);
+        !busy_ && !gate_->busy() && error.isEmpty() && sourceAvailable);
 
-    load_->setEnabled(!busy_ && sourceAvailable);
+    load_->setEnabled(!busy_ && !gate_->busy() && sourceAvailable);
 }
 
 void BackTestingPage::setBusy(bool busy) {
+    if (!busy && claimed_) { gate_->release("backtest"); claimed_ = false; }
     busy_ = busy;
 
     configCard_->setEnabled(!busy);
@@ -731,6 +736,11 @@ void BackTestingPage::startJob(bool execute) {
         return;
     }
 
+    if (!gate_->acquire("backtest")) {
+        validation_->setText("Another engine job is active: " + QString::fromStdString(gate_->owner()));
+        return;
+    }
+    claimed_ = true;
     try {
         RunConfiguration config;
 

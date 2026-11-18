@@ -1,6 +1,7 @@
 #pragma once
 
 #include "TradingAPI.hpp"
+#include "EngineGate.hpp"
 
 #include <QFutureWatcher>
 #include <QMap>
@@ -28,7 +29,7 @@ class BackTestingPage final : public QWidget {
     Q_OBJECT
 
 public:
-    explicit BackTestingPage(QWidget* parent = nullptr);
+    explicit BackTestingPage(QWidget* parent = nullptr, SharedEngineGate gate = {});
     ~BackTestingPage() override;
 
     bool isBusy() const noexcept {
@@ -94,6 +95,8 @@ private:
     QFutureWatcher<std::shared_ptr<ViewData>> watcher_;
     QTimer progressTimer_;
 
+    SharedEngineGate gate_;
+    bool claimed_{};
     bool busy_{false};
     bool runningStrategy_{false};
     bool closing_{false};
